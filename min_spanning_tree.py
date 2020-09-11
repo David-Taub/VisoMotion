@@ -28,22 +28,21 @@ def kruskal(V, E, weight):
     return min_spanning_tree
 
 
-class DisjointSetNode:
-    def __init__(self):
-        self.parent = self
-        self.size = 1
-
-
 class DisjointSetForest:
+    class DisjointSetNode:
+        def __init__(self):
+            self.parent = self
+            self.size = 1
+
     def __init__(self):
         self._value_to_tree = {}
 
     def make_set(self, value):
         if value not in self._value_to_tree:
-            self._value_to_tree[value] = DisjointSetNode()
+            self._value_to_tree[value] = self.DisjointSetNode()
 
     def find(self, value):
-        node = value if isinstance(value, DisjointSetNode) else self._value_to_tree[value]
+        node = value if isinstance(value, self.DisjointSetNode) else self._value_to_tree[value]
         if node.parent == node:
             return node
         node.parent = self.find(node.parent)
@@ -60,22 +59,3 @@ class DisjointSetForest:
         else:
             node2.parent = node1
             node1.size += node2.size
-
-
-def test():
-    V = range(4)
-    E = []
-    for i in V:
-        for j in V:
-            if i != j:
-                E.append((i, j))
-
-    def weight(edge):
-        return abs(edge[0] - edge[1])
-    mst = kruskal(V, E, weight)
-    for i, j in mst:
-        assert(abs(i - j) == 1)
-
-
-# TODO: move test to another file
-test()
