@@ -1,5 +1,5 @@
 
-def get_min_spanning_tree(V, E, weight):
+def kruskal(V, E, weight):
     """
     Psaudo-code from Wikipedia:
 
@@ -15,15 +15,12 @@ def get_min_spanning_tree(V, E, weight):
     """
     min_spanning_tree = []
     disjoint_set = DisjointSetForest()
-    V_trees = {}
     for v in V:
-        tree = DisjointSetTree()
-        V_trees[v] = tree
-        disjoint_set.make_set(tree)
+        disjoint_set.make_set(v)
     E_sorted = sorted(E, key=weight)
     for v, u in E_sorted:
-        v_tree = disjoint_set.find(V_trees[v])
-        u_tree = disjoint_set.find(V_trees[u])
+        v_tree = disjoint_set.find(v)
+        u_tree = disjoint_set.find(u)
         if v_tree != u_tree:
             min_spanning_tree.append((v, u))
             disjoint_set.union(v_tree, u_tree)
@@ -31,7 +28,7 @@ def get_min_spanning_tree(V, E, weight):
     return min_spanning_tree
 
 
-class DisjointSetTree:
+class DisjointSetNode:
     def __init__(self):
         self.parent = self
         self.size = 1
@@ -39,29 +36,30 @@ class DisjointSetTree:
 
 class DisjointSetForest:
     def __init__(self):
-        self.forest = set()
+        self._value_to_tree = {}
 
-    def make_set(self, x: DisjointSetTree):
-        if x not in self.forest:
-            self.forest.add(x)
+    def make_set(self, value):
+        if value not in self._value_to_tree:
+            self._value_to_tree[value] = DisjointSetNode()
 
-    def find(self, x: DisjointSetTree):
-        if x.parent == x:
-            return x
-        x.parent = self.find(x.parent)
-        return x.parent
+    def find(self, value):
+        node = value if isinstance(value, DisjointSetNode) else self._value_to_tree[value]
+        if node.parent == node:
+            return node
+        node.parent = self.find(node.parent)
+        return node.parent
 
-    def union(self, x: DisjointSetTree, y: DisjointSetTree):
-        x = self.find(x)
-        y = self.find(y)
-        if x == y:
+    def union(self, value1, value2):
+        node1 = self.find(value1)
+        node2 = self.find(value2)
+        if node1 == node2:
             return
-        if x.size < y.size:
-            x.parent = y
-            y.size += x.size
+        if node1.size < node2.size:
+            node1.parent = node2
+            node2.size += node1.size
         else:
-            y.parent = x
-            x.size += y.size
+            node2.parent = node1
+            node1.size += node2.size
 
 
 def test():
@@ -74,7 +72,7 @@ def test():
 
     def weight(edge):
         return abs(edge[0] - edge[1])
-    mst = get_min_spanning_tree(V, E, weight)
+    mst = kruskal(V, E, weight)
     for i, j in mst:
         assert(abs(i - j) == 1)
 
