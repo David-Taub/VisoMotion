@@ -1,5 +1,7 @@
+from disjoint_set_forest import DisjointSetForest
 
-def kruskal(V, E, weight):
+
+def kruskal(vertices, edges, weight):
     """
     Psaudo-code from Wikipedia:
 
@@ -15,47 +17,15 @@ def kruskal(V, E, weight):
     """
     min_spanning_tree = []
     disjoint_set = DisjointSetForest()
-    for v in V:
+    for v in vertices:
         disjoint_set.make_set(v)
-    E_sorted = sorted(E, key=weight)
-    for v, u in E_sorted:
+    edges_sorted = sorted(edges, key=weight)
+    for v, u in edges_sorted:
         v_tree = disjoint_set.find(v)
         u_tree = disjoint_set.find(u)
+        if None in (u_tree, v_tree):
+            continue
         if v_tree != u_tree:
             min_spanning_tree.append((v, u))
             disjoint_set.union(v_tree, u_tree)
-
     return min_spanning_tree
-
-
-class DisjointSetForest:
-    class DisjointSetNode:
-        def __init__(self):
-            self.parent = self
-            self.size = 1
-
-    def __init__(self):
-        self._value_to_tree = {}
-
-    def make_set(self, value):
-        if value not in self._value_to_tree:
-            self._value_to_tree[value] = self.DisjointSetNode()
-
-    def find(self, value):
-        node = value if isinstance(value, self.DisjointSetNode) else self._value_to_tree[value]
-        if node.parent == node:
-            return node
-        node.parent = self.find(node.parent)
-        return node.parent
-
-    def union(self, value1, value2):
-        node1 = self.find(value1)
-        node2 = self.find(value2)
-        if node1 == node2:
-            return
-        if node1.size < node2.size:
-            node1.parent = node2
-            node2.size += node1.size
-        else:
-            node2.parent = node1
-            node1.size += node2.size
