@@ -1,26 +1,19 @@
+import images2gif
+import os
 import sys
-
 from PIL import Image
-from PIL import ImageSequence
 import numpy as np
 from tqdm import tqdm
 import cv2
-# import imageio
-# import gif2numpy
-# from scipy import ndimage
-# import array2gif
-# import skvideo.io
-# import matplotlib.pyplot as plt
 
-INF = np.iinfo(np.int64).max
-video_path = sys.argv[1]
-PATCH_SIZE = 5
+
+PATCH_SIZE = 20
 
 
 def lucas_kanade_optic_flow(vid):
-    vid_gray = np.array([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in vid])
+    vid_gray = np.array([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in vid]) / 255.0
     shape = vid_gray.shape
-    It, Ix, Iy = np.gradient(vid_gray)
+    It, Iy, Ix = np.gradient(vid_gray)
     velocity = np.zeros(list(shape) + [2])
     for t in tqdm(range(shape[0])):
         for y in range(0, shape[1], PATCH_SIZE):
@@ -34,22 +27,21 @@ def lucas_kanade_optic_flow(vid):
 
 
 def draw_arrows(vid, velocity):
+    ARROW_COLOR = (0, 0, 255)
+    ARROW_WIDTH = 1
     shape = vid.shape
     for t in range(shape[0]):
         for y in range(0, shape[1], PATCH_SIZE):
             for x in range(0, shape[2], PATCH_SIZE):
-                draw_arrow(vid[t, :, :, :], x + PATCH_SIZE // 2, y + PATCH_SIZE // 2,
-                           *velocity[t, y + PATCH_SIZE // 2, x + PATCH_SIZE // 2])
-
-
-def draw_arrow(img, x, y, vx, vy):
-    ARROW_COLOR = (0, 0, 255)
-    ARROW_WIDTH = 1
-    cv2.arrowedLine(img, (x, y), (x + int(vx), y + int(vy)), ARROW_COLOR, ARROW_WIDTH)
+                v = velocity[t, y, x]
+                v *= PATCH_SIZE
+                pos = np.array([x + PATCH_SIZE // 2, y + PATCH_SIZE // 2])
+                dst = pos + v.astype(np.int)
+                cv2.arrowedLine(vid[t, :, :, :], tuple(pos), tuple(dst), ARROW_COLOR, ARROW_WIDTH)
 
 
 def calc_patch_velocity(Ix_patch, Iy_patch, It_patch):
-    A = np.vstack([Ix_patch.flatten(), Iy_patch.flatten()]).T
+    A = np.vstack([Iy_patch.flatten(), Ix_patch.flatten()]).T
     b = -It_patch.flatten()
     return least_square(A, b)
 
@@ -78,20 +70,29 @@ def loop_show(vid):
             if key == ord('a'):
                 sleep *= 2
             if key == ord('s'):
-                sleep *= 1 / 2
+                sleep = sleep // 2
 
 
 def load_video(video_path):
-    # return gif2numpy.convert(video_path, BGR2RGB=False)[0]
-    # return plt.imread(video_path)
-    # return ndimage.imread(video_path)
-    vid_obj = Image.open(video_path)
-    frames = np.array([np.array(frame.copy().convert('RGB').getdata(), dtype=np.uint8).reshape(
-        frame.size[1], frame.size[0], 3) for frame in ImageSequence.Iterator(vid_obj)])
-    return frames
+    return np.array(images2gif.readGif(video_path, True))
 
 
-vid = load_video(video_path)
-velocity = lucas_kanade_optic_flow(vid)
-draw_arrows(vid, velocity)
-loop_show(vid)
+def save_video(vid, out_path):
+    ims = [Image.fromarray(frame) for frame in vid]
+    ims[0].save(out_path, save_all=True, append_images=ims[1:], loop=0, optimize=True)
+    # images2gif.writeGif(out_path, [frame for frame in vid], subRectangles=False)
+
+
+def main():
+    video_path = sys.argv[1]
+    vid = load_video(video_path)
+    velocity = lucas_kanade_optic_flow(vid)
+    draw_arrows(vid, velocity)
+    base, ext = os.path.splitext(video_path)
+    out_path = base + '_out' + ext
+    save_video(vid, out_path)
+    loop_show(vid)
+
+
+if __name__ == '__main__':
+    main()
