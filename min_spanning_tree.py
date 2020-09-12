@@ -19,13 +19,13 @@ def kruskal(vertices, edges, weight):
     disjoint_set = DisjointSetForest()
     for v in vertices:
         disjoint_set.make_set(v)
-    edges_sorted = sorted(edges, key=weight)
-    for v, u in edges_sorted:
-        v_tree = disjoint_set.find(v)
-        u_tree = disjoint_set.find(u)
+    edges_sorted = sorted(edges, key=lambda edge: weight(vertices[edge[0]], vertices[edge[1]]))
+    for v_ind, u_ind in edges_sorted:
+        v_tree = disjoint_set.find(vertices[v_ind])
+        u_tree = disjoint_set.find(vertices[u_ind])
         if None in (u_tree, v_tree):
             continue
         if v_tree != u_tree:
-            min_spanning_tree.append((v, u))
+            min_spanning_tree.append((v_ind, u_ind))
             disjoint_set.union(v_tree, u_tree)
     return min_spanning_tree

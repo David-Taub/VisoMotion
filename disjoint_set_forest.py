@@ -6,11 +6,15 @@ class DisjointSetForest:
             self.set = {value}
 
     def __init__(self):
-        self._value_to_tree = {}
+        self._value_to_node = {}
 
     def make_set(self, value):
-        if value not in self._value_to_tree:
-            self._value_to_tree[value] = self.DisjointSetNode(value)
+        if value not in self._value_to_node:
+            self._value_to_node[value] = self.DisjointSetNode(value)
+
+    def get_forest_sets(self):
+        trees = {self.find(node) for node in self._value_to_node.values()}
+        return [tree.set for tree in trees]
 
     def find(self, x):
         """
@@ -21,8 +25,8 @@ class DisjointSetForest:
         """
         if isinstance(x, self.DisjointSetNode):
             node = x
-        elif x in self._value_to_tree:
-            node = self._value_to_tree[x]
+        elif x in self._value_to_node:
+            node = self._value_to_node[x]
         else:
             return None
         if node.parent == node:
