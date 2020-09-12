@@ -70,7 +70,7 @@ def threshold_function(component):
 
 def test():
     img = np.random.random((10, 10, 3))
-    print(selective_search(img))
+    assert(sum([len(s) for s in selective_search(img)]) == 100)
 
 
 test()
