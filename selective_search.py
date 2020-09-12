@@ -2,6 +2,7 @@
 Felzenszwalb and Huttenlocher, 2003
 http://people.cs.uchicago.edu/~pff/papers/seg-ijcv.pdf
 """
+from functools import lru_cache
 from min_spanning_tree import kruskal
 from min_spanning_tree import DisjointSetForest
 import sys
@@ -13,6 +14,7 @@ from tqdm import tqdm
 
 K = 1.2
 COLOR_STENGTH = 1.0
+CACHE_SIZE = 2 ** 16
 
 
 def find_segments(img):
@@ -26,15 +28,17 @@ def selective_search(vertices: list, edges: list, weight):
     edges_sorted = sorted(edges, key=lambda edge: weight(*edge))
     disjoint_set = DisjointSetForest()
     for v in tqdm(vertices):
-        disjoint_set.make_set(v)
+        node = disjoint_set.make_set(v)
+        node.edges = {edge for edge in edges if v in edge}
     for v, u in tqdm(edges_sorted):
         component_v_tree = disjoint_set.find(v)
         component_u_tree = disjoint_set.find(u)
         if component_v_tree != component_u_tree and \
-                weight(v, u) <= min_internal_difference(list(component_v_tree.set), list(component_u_tree.set),
-                                                        edges, edges, weight):
+                weight(v, u) <= min_internal_difference(tuple(component_v_tree.set), tuple(component_u_tree.set),
+                                                        tuple(component_v_tree.edges), tuple(component_u_tree.edges), weight):
             # TODO: here we can make the components hold their edges, for faster min_internal_difference
-            disjoint_set.union(component_v_tree, component_u_tree)
+            node = disjoint_set.union(component_v_tree, component_u_tree)
+            node.edges = node.edges.union(component_v_tree.edges, component_u_tree.edges)
     return disjoint_set.get_forest_sets()
 
 
@@ -50,7 +54,6 @@ def build_graph(img):
 
     shape = img.shape[:2]
     positions = np.indices(shape)
-    # positions = [tuple(row) for row in positions.reshape(2, -1).T]
     # 8 connected neighbors
     # horizontal
     vertices = np.hstack((positions.reshape(2, -1).T, img.reshape([-1, 3])))
@@ -73,6 +76,7 @@ def build_graph(img):
     return vertices, edges, weight
 
 
+@lru_cache(maxsize=CACHE_SIZE)
 def internal_difference(component, edges, weight):
     mst = kruskal(component, edges, weight)
     if len(mst) == 0:
