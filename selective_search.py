@@ -4,30 +4,48 @@ http://people.cs.uchicago.edu/~pff/papers/seg-ijcv.pdf
 """
 from min_spanning_tree import kruskal
 from min_spanning_tree import DisjointSetForest
-# import itertools
+import sys
 import numpy as np
-K = 0.8
+from matplotlib import cm
+import matplotlib.pyplot as plt
+import imageio
+from tqdm import tqdm
+
+K = 1.2
+COLOR_STENGTH = 1.0
 
 
-def selective_search(img):
+def find_segments(img):
     vertices, edges, weight = build_graph(img)
-    edges_sorted = sorted(edges, key=lambda edge: weight(vertices[edge[0]], vertices[edge[1]]))
+    vertex_sets = selective_search(vertices, edges, weight)
+    # position_sets = indices_to_positions(vertex_sets, vertices)
+    return vertex_sets
+
+
+def selective_search(vertices: list, edges: list, weight):
+    edges_sorted = sorted(edges, key=lambda edge: weight(*edge))
     disjoint_set = DisjointSetForest()
-    for v in vertices:
+    for v in tqdm(vertices):
         disjoint_set.make_set(v)
-    for v, u in edges_sorted:
+    for v, u in tqdm(edges_sorted):
         component_v_tree = disjoint_set.find(v)
         component_u_tree = disjoint_set.find(u)
         if component_v_tree != component_u_tree and \
-                weight((u, v)) <= min_internal_difference(component_v_tree.set, component_u_tree.set,
-                                                          weight):
+                weight(v, u) <= min_internal_difference(list(component_v_tree.set), list(component_u_tree.set),
+                                                        edges, edges, weight):
             # TODO: here we can make the components hold their edges, for faster min_internal_difference
             disjoint_set.union(component_v_tree, component_u_tree)
     return disjoint_set.get_forest_sets()
 
 
+def indices_to_positions(index_sets, vertices):
+    position_sets = []
+    for index_set in index_sets:
+        position_sets.append({(vertices[i][0], vertices[i][1]) for i in index_set})
+    return position_sets
+
+
 def build_graph(img):
-    # TODO: implement
     # vertices = itertools.product(range(img.shape[0]), range(img.shape[1]))
 
     shape = img.shape[:2]
@@ -35,28 +53,31 @@ def build_graph(img):
     # positions = [tuple(row) for row in positions.reshape(2, -1).T]
     # 8 connected neighbors
     # horizontal
-    edges = list(zip(np.ravel_multi_index(positions[:, :, :-1].reshape(2, -1), shape),
-                     np.ravel_multi_index(positions[:, :, 1:].reshape(2, -1), shape)))
+    vertices = np.hstack((positions.reshape(2, -1).T, img.reshape([-1, 3])))
+    indices = np.arange(shape[0] * shape[1])
+    edges = list(zip(vertices[indices % shape[1] != shape[1] - 1], vertices[indices % shape[1] != 0]))
     # vertical
-    edges += list(zip(np.ravel_multi_index(positions[:, 1:, :].reshape(2, -1), shape),
-                      np.ravel_multi_index(positions[:, :-1, :].reshape(2, -1), shape)))
+    edges += list(zip(vertices[:-shape[1]], vertices[shape[1]:]))
     # diagonal \
-    edges += list(zip(np.ravel_multi_index(positions[:, :-1, :-1].reshape(2, -1), shape),
-                      np.ravel_multi_index(positions[:, 1:, 1:].reshape(2, -1), shape)))
+    edges += list(zip(vertices[(indices % shape[1] != shape[1] - 1) & (indices < shape[1] * (shape[0] - 1))],
+                      vertices[(indices % shape[1] != 0) & (indices > shape[1])]))
     # diagonal /
-    edges += list(zip(np.ravel_multi_index(positions[:, 1:, :-1].reshape(2, -1), shape),
-                      np.ravel_multi_index(positions[:, :-1, 1:].reshape(2, -1), shape)))
+    edges += list(zip(vertices[(indices % shape[1] != shape[1] - 1) & (indices > shape[1])],
+                      vertices[(indices % shape[1] != 0) & (indices < shape[1] * (shape[0] - 1))]))
     # TODO: add optical flow to video version
-    vertices = [(y, x) + tuple(img[y, x, :]) for y, x in positions.reshape(2, -1).T]
+    vertices = [tuple(v) for v in vertices]
+    edges = [(tuple(v), tuple(u)) for v, u in edges]
 
     def weight(vertex1, vertex2):
-        return np.linalg.norm(np.array(vertex1) - np.array(vertex2))
+        return (vertex1[2] - vertex2[2]) ** 2 + (vertex1[3] - vertex2[3]) ** 2 + (vertex1[4] - vertex2[4]) ** 2
     return vertices, edges, weight
 
 
-def internal_difference(compoenent, edges, weight):
-    mst = kruskal(compoenent, edges, weight)
-    return min(mst, key=weight)
+def internal_difference(component, edges, weight):
+    mst = kruskal(component, edges, weight)
+    if len(mst) == 0:
+        return 0
+    return min([weight(*edge) for edge in mst])
 
 
 def min_internal_difference(component1, component2, edges_component1, edges_component2, weight):
@@ -68,9 +89,29 @@ def threshold_function(component):
     return K / len(component)
 
 
-def test():
-    img = np.random.random((10, 10, 3))
-    assert(sum([len(s) for s in selective_search(img)]) == 100)
+def color_segments(img, segments):
+    cmap = cm.tab20
+    img = img.copy()
+    for i, segment in enumerate(segments):
+        segment_color = cmap(i % len(cmap.colors))
+        for pixel in segment:
+            y = int(pixel[0])
+            x = int(pixel[1])
+            img[y, x, :] = (1 - COLOR_STENGTH) * img[y, x, :] + COLOR_STENGTH * np.array(segment_color)[:3]
+    return img
 
 
-test()
+def main():
+    image_path = sys.argv[1]
+    img = imageio.imread(image_path) / 255.0
+    segments = find_segments(img)
+    img_colored = color_segments(img, segments)
+    plt.subplot(121)
+    plt.imshow(img_colored)
+    plt.subplot(122)
+    plt.imshow(img)
+    plt.show()
+
+
+# test()
+main()
