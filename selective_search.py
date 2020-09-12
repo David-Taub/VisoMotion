@@ -20,7 +20,6 @@ CACHE_SIZE = 2 ** 16
 def find_segments(img):
     vertices, edges, weight = build_graph(img)
     vertex_sets = selective_search(vertices, edges, weight)
-    # position_sets = indices_to_positions(vertex_sets, vertices)
     return vertex_sets
 
 
@@ -29,24 +28,17 @@ def selective_search(vertices: list, edges: list, weight):
     disjoint_set = DisjointSetForest()
     for v in tqdm(vertices):
         node = disjoint_set.make_set(v)
-        node.edges = {edge for edge in edges if v in edge}
+        node.edges = (edge for edge in edges if v in edge)
     for v, u in tqdm(edges_sorted):
         component_v_tree = disjoint_set.find(v)
         component_u_tree = disjoint_set.find(u)
         if component_v_tree != component_u_tree and \
                 weight(v, u) <= min_internal_difference(tuple(component_v_tree.set), tuple(component_u_tree.set),
-                                                        tuple(component_v_tree.edges), tuple(component_u_tree.edges), weight):
-            # TODO: here we can make the components hold their edges, for faster min_internal_difference
+                                                        component_v_tree.edges, component_u_tree.edges,
+                                                        weight):
             node = disjoint_set.union(component_v_tree, component_u_tree)
-            node.edges = node.edges.union(component_v_tree.edges, component_u_tree.edges)
+            node.edges = tuple(set().union(set(component_v_tree.edges), set(component_u_tree.edges)))
     return disjoint_set.get_forest_sets()
-
-
-def indices_to_positions(index_sets, vertices):
-    position_sets = []
-    for index_set in index_sets:
-        position_sets.append({(vertices[i][0], vertices[i][1]) for i in index_set})
-    return position_sets
 
 
 def build_graph(img):
@@ -110,11 +102,12 @@ def main():
     img = imageio.imread(image_path) / 255.0
     segments = find_segments(img)
     img_colored = color_segments(img, segments)
-    plt.subplot(121)
-    plt.imshow(img_colored)
-    plt.subplot(122)
-    plt.imshow(img)
-    plt.show()
+
+    # plt.subplot(121)
+    # plt.imshow(img_colored)
+    # plt.subplot(122)
+    # plt.imshow(img)
+    # plt.show()
 
 
 # test()
