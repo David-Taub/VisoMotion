@@ -3,7 +3,7 @@ class DisjointSetForest:
     class DisjointSetNode:
         def __init__(self, value):
             self.parent = self
-            self.set = {value}
+            self.size = 1
 
     def __init__(self):
         self._value_to_node = {}
@@ -14,15 +14,20 @@ class DisjointSetForest:
         return self._value_to_node[value]
 
     def get_forest_sets(self):
-        trees = {self.find(node) for node in self._value_to_node.values()}
-        return [tree.set for tree in trees]
+        d = {}
+        for value, node in self._value_to_node.items():
+            tree = self.find(node)
+            if tree in d:
+                d[tree].append(value)
+            else:
+                d[tree] = [value]
+        return d.values()
 
     def find(self, x):
         """
         x can be the value or the node that holds the value.
         Supporting node as an argument is needed for the recursive call
         If x is a value that is not in the forest, returns None.
-
         """
         if isinstance(x, self.DisjointSetNode):
             node = x
@@ -43,9 +48,8 @@ class DisjointSetForest:
         node2 = self.find(y)
         if node1 == node2:
             return node1
-        if len(node1.set) < len(node2.set):
+        if node1.size < node2.size:
             node1, node2 = node2, node1
         node2.parent = node1
-        node1.set = node1.set.union(node2.set)
-        node2.set = None
+        node1.size += node2.size
         return node1
