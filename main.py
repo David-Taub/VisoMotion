@@ -34,14 +34,14 @@ def draw_arrows(vid, velocity):
         for y in range(0, shape[1], PATCH_SIZE):
             for x in range(0, shape[2], PATCH_SIZE):
                 v = velocity[t, y, x]
-                v *= PATCH_SIZE
+                v *= 10
                 pos = np.array([x + PATCH_SIZE // 2, y + PATCH_SIZE // 2])
                 dst = pos + v.astype(np.int)
                 cv2.arrowedLine(vid[t, :, :, :], tuple(pos), tuple(dst), ARROW_COLOR, ARROW_WIDTH)
 
 
 def calc_patch_velocity(Ix_patch, Iy_patch, It_patch):
-    A = np.vstack([Iy_patch.flatten(), Ix_patch.flatten()]).T
+    A = np.vstack([Ix_patch.flatten(), Iy_patch.flatten()]).T
     b = -It_patch.flatten()
     return least_square(A, b)
 
