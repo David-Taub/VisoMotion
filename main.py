@@ -34,7 +34,7 @@ def draw_arrows(vid, velocity):
         for y in range(0, shape[1], PATCH_SIZE):
             for x in range(0, shape[2], PATCH_SIZE):
                 v = velocity[t, y, x]
-                v *= 10
+                v *= PATCH_SIZE // 2
                 pos = np.array([x + PATCH_SIZE // 2, y + PATCH_SIZE // 2])
                 dst = pos + v.astype(np.int)
                 cv2.arrowedLine(vid[t, :, :, :], tuple(pos), tuple(dst), ARROW_COLOR, ARROW_WIDTH)
